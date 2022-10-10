@@ -34,10 +34,11 @@ class Receipt {
 
 Future<List<Receipt>> fetchReceipts() async {
   final response =
-      await http.get(Uri.parse('http://localhost:8080/receipts/3fa85f64-5717-4562-b3fc-2c963f66afa6'));
+      await http.get(Uri.parse('http://localhost:8080/receipts'));
 
   if (response.statusCode == 200) {
-    return [Receipt.fromJson(jsonDecode(response.body))];
+    return List.from(jsonDecode(response.body)
+        .map((e) => Receipt.fromJson(e)));
   } else {
     throw Exception('Failed to load receipts');
   }
