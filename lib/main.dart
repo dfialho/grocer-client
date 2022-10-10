@@ -46,8 +46,12 @@ class MyApp extends StatelessWidget {
               buildReceipt(Receipt("Receipt E", "Continente", 100,
                   DateTime(2022, 10, 11), ReceiptStatus.processed)),
               const SizedBox(height: 5.0),
-              buildReceipt(Receipt("Receipt F", "Continente", 100,
-                  DateTime(2022, 10, 11), ReceiptStatus.processed)),
+              buildReceipt(Receipt(
+                  "Receipt FReceipt AReceipt AReceipt AReceipt AReceipt A A A A A A A A A A A A A A",
+                  "Continente Continente Continente Continente Continente Continente Continente Continente A A A A  A A A A A A A",
+                  100,
+                  DateTime(2022, 10, 11),
+                  ReceiptStatus.processed)),
               const SizedBox(height: 5.0),
               buildReceipt(Receipt("Receipt G", "Continente", 100,
                   DateTime(2022, 10, 11), ReceiptStatus.processed)),
@@ -71,15 +75,27 @@ class MyApp extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      receipt.name,
-                      style: const TextStyle(fontSize: 20.0),
+                Expanded(
+                  flex: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 50.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          receipt.name,
+                          style: const TextStyle(fontSize: 20.0),
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                        ),
+                        Text(
+                          receipt.store,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                        )
+                      ],
                     ),
-                    Text(receipt.store)
-                  ],
+                  ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
