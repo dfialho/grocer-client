@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 void main() {
   runApp(const MyApp());
@@ -6,14 +7,47 @@ void main() {
 
 enum ReceiptStatus { unprocessed, processing, processed, warning }
 
+@immutable
 class Receipt {
-  String name;
-  String store;
-  int amount;
-  DateTime date;
-  ReceiptStatus status;
+  final String id = const Uuid().v4();
+  final String name;
+  final String store;
+  final int amount;
+  final DateTime date;
+  final ReceiptStatus status;
 
   Receipt(this.name, this.store, this.amount, this.date, this.status);
+}
+
+class ReceiptListModel {
+  final List<Receipt> receipts = [
+    Receipt("Receipt A", "Continente", 100, DateTime(2022, 10, 11),
+        ReceiptStatus.warning),
+    Receipt("Receipt B", "Continente Online", 100, DateTime(2022, 10, 10),
+        ReceiptStatus.processing),
+    Receipt("Receipt C", "Continente", 100, DateTime(2022, 10, 11),
+        ReceiptStatus.processed),
+    Receipt("Receipt D", "Continente", 100, DateTime(2022, 10, 11),
+        ReceiptStatus.unprocessed),
+    Receipt("Receipt E", "Continente", 100, DateTime(2022, 10, 11),
+        ReceiptStatus.processed),
+    Receipt(
+        "Receipt FReceipt AReceipt AReceipt AReceipt AReceipt A A A A A A A A A A A A A A",
+        "Continente Continente Continente Continente Continente Continente Continente Continente A A A A  A A A A A A A",
+        100,
+        DateTime(2022, 10, 11),
+        ReceiptStatus.processed),
+    Receipt("Receipt G", "Continente", 100, DateTime(2022, 10, 11),
+        ReceiptStatus.processed),
+  ];
+
+  int size() {
+    return receipts.length;
+  }
+
+  Receipt get(int index) {
+    return receipts[index];
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -21,6 +55,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    final receiptList = ReceiptListModel();
+
     return MaterialApp(
       title: "Grocer",
       home: Scaffold(
@@ -29,45 +66,35 @@ class MyApp extends StatelessWidget {
         ),
         body: Padding(
           padding: const EdgeInsets.all(15.0),
-          child: Column(
-            children: [
-              buildReceipt(Receipt("Receipt A", "Continente", 100,
-                  DateTime(2022, 10, 11), ReceiptStatus.warning)),
-              const SizedBox(height: 5.0),
-              buildReceipt(Receipt("Receipt B", "Continente Online", 100,
-                  DateTime(2022, 10, 10), ReceiptStatus.processing)),
-              const SizedBox(height: 5.0),
-              buildReceipt(Receipt("Receipt C", "Continente", 100,
-                  DateTime(2022, 10, 11), ReceiptStatus.processed)),
-              const SizedBox(height: 5.0),
-              buildReceipt(Receipt("Receipt D", "Continente", 100,
-                  DateTime(2022, 10, 11), ReceiptStatus.unprocessed)),
-              const SizedBox(height: 5.0),
-              buildReceipt(Receipt("Receipt E", "Continente", 100,
-                  DateTime(2022, 10, 11), ReceiptStatus.processed)),
-              const SizedBox(height: 5.0),
-              buildReceipt(Receipt(
-                  "Receipt FReceipt AReceipt AReceipt AReceipt AReceipt A A A A A A A A A A A A A A",
-                  "Continente Continente Continente Continente Continente Continente Continente Continente A A A A  A A A A A A A",
-                  100,
-                  DateTime(2022, 10, 11),
-                  ReceiptStatus.processed)),
-              const SizedBox(height: 5.0),
-              buildReceipt(Receipt("Receipt G", "Continente", 100,
-                  DateTime(2022, 10, 11), ReceiptStatus.processed)),
-            ],
+          child: ListView.builder(
+            itemCount: receiptList.size(),
+            itemBuilder: (context, index) {
+              return Column(
+                children: [
+                  _ReceiptWidget(receiptList.get(index)),
+                  const SizedBox(height: 5,)
+                ],
+              );
+            },
           ),
         ),
       ),
     );
   }
+}
 
-  Widget buildReceipt(Receipt receipt) {
+class _ReceiptWidget extends StatelessWidget {
+  const _ReceiptWidget(this.receipt);
+
+  final Receipt receipt;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
           border: Border.all(),
-          borderRadius: BorderRadius.all(Radius.circular(10))),
+          borderRadius: const BorderRadius.all(Radius.circular(10))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
@@ -141,5 +168,4 @@ class MyApp extends StatelessWidget {
       case ReceiptStatus.warning:
         return "🟡";
     }
-  }
-}
+  }}
