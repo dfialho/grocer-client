@@ -1,80 +1,103 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
 }
 
-enum ReceiptStatus { unprocessed, processing, processed, warning }
+enum ReceiptStatus {
+  unprocessed,
+  processing,
+  processed,
+  warning;
+}
 
 @immutable
 class Receipt {
-  final String id = const Uuid().v4();
+  final String id;
   final String name;
   final String store;
   final int amount;
   final DateTime date;
   final ReceiptStatus status;
 
-  Receipt(this.name, this.store, this.amount, this.date, this.status);
-}
+  const Receipt(
+      this.id, this.name, this.store, this.amount, this.date, this.status);
 
-class ReceiptListModel {
-  final List<Receipt> receipts = [
-    Receipt("Receipt A", "Continente", 100, DateTime(2022, 10, 11),
-        ReceiptStatus.warning),
-    Receipt("Receipt B", "Continente Online", 100, DateTime(2022, 10, 10),
-        ReceiptStatus.processing),
-    Receipt("Receipt C", "Continente", 100, DateTime(2022, 10, 11),
-        ReceiptStatus.processed),
-    Receipt("Receipt D", "Continente", 100, DateTime(2022, 10, 11),
-        ReceiptStatus.unprocessed),
-    Receipt("Receipt E", "Continente", 100, DateTime(2022, 10, 11),
-        ReceiptStatus.processed),
-    Receipt(
-        "Receipt FReceipt AReceipt AReceipt AReceipt AReceipt A A A A A A A A A A A A A A",
-        "Continente Continente Continente Continente Continente Continente Continente Continente A A A A  A A A A A A A",
-        100,
-        DateTime(2022, 10, 11),
-        ReceiptStatus.processed),
-    Receipt("Receipt G", "Continente", 100, DateTime(2022, 10, 11),
-        ReceiptStatus.processed),
-  ];
-
-  int size() {
-    return receipts.length;
-  }
-
-  Receipt get(int index) {
-    return receipts[index];
+  static Receipt fromJson(Map<String, dynamic> json) {
+    return Receipt(json['id'], json['name'], json['store'], json['amount'],
+        DateTime.now(), ReceiptStatus.processed);
   }
 }
 
-class MyApp extends StatelessWidget {
+Future<List<Receipt>> fetchReceipts() async {
+  final response =
+      await http.get(Uri.parse('http://localhost:8080/receipts/3fa85f64-5717-4562-b3fc-2c963f66afa6'));
+
+  if (response.statusCode == 200) {
+    return [Receipt.fromJson(jsonDecode(response.body))];
+  } else {
+    throw Exception('Failed to load receipts');
+  }
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late Future<List<Receipt>> futureReceipts;
+
+  @override
+  void initState() {
+    super.initState();
+    futureReceipts = fetchReceipts();
+  }
+
+  @override
   Widget build(BuildContext context) {
-
-    final receiptList = ReceiptListModel();
-
     return MaterialApp(
       title: "Grocer",
       home: Scaffold(
         appBar: AppBar(
-          title: const Text("Receipts"),
+          title: TextButton(
+            style: ButtonStyle(
+              foregroundColor: MaterialStateProperty.all<Color>(Colors.blue),
+            ),
+            onPressed: () { },
+            child: Text('Receipts'),
+          ),
         ),
         body: Padding(
           padding: const EdgeInsets.all(15.0),
-          child: ListView.builder(
-            itemCount: receiptList.size(),
-            itemBuilder: (context, index) {
-              return Column(
-                children: [
-                  _ReceiptWidget(receiptList.get(index)),
-                  const SizedBox(height: 5,)
-                ],
-              );
+          child: FutureBuilder<List<Receipt>>(
+            future: futureReceipts,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                final receiptList = snapshot.data!;
+                return ListView.builder(
+                  itemCount: receiptList.length,
+                  itemBuilder: (context, index) {
+                    return Column(
+                      children: [
+                        _ReceiptWidget(receiptList[index]),
+                        const SizedBox(
+                          height: 5,
+                        )
+                      ],
+                    );
+                  },
+                );
+              } else if (snapshot.hasError) {
+                return Text('${snapshot.error}');
+              } else {
+                return const CircularProgressIndicator();
+              }
             },
           ),
         ),
@@ -168,4 +191,5 @@ class _ReceiptWidget extends StatelessWidget {
       case ReceiptStatus.warning:
         return "🟡";
     }
-  }}
+  }
+}
