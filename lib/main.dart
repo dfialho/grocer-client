@@ -42,7 +42,8 @@ class ReceiptListModel {
 
   Future<void> refresh() async {
     print("Refresh");
-    _stream.addStream(Stream.fromFuture(fetchReceipts()));
+    final receipts = await fetchReceipts();
+    _stream.addStream(Stream.value(receipts));
     print("Refreshed");
   }
 }
