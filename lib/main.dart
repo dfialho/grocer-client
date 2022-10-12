@@ -40,7 +40,7 @@ class ReceiptListModel {
 
   final _stream = StreamController<List<Receipt>>();
 
-  void refresh() async {
+  Future<void> refresh() async {
     print("Refresh");
     _stream.addStream(Stream.fromFuture(fetchReceipts()));
     print("Refreshed");
@@ -48,9 +48,9 @@ class ReceiptListModel {
 }
 
 Future<List<Receipt>> fetchReceipts() async {
-  print("Fteching receipts...");
+  print("Fetching receipts...");
   final response = await http.get(Uri.parse('http://localhost:8080/receipts'));
-  print("Fteched receipts");
+  print("Fetched receipts");
 
   if (response.statusCode == 200) {
     return List.from(jsonDecode(response.body).map((e) => Receipt.fromJson(e)));
@@ -87,54 +87,47 @@ class _ReceiptListWidget extends StatelessWidget {
 
     return Padding(
         padding: const EdgeInsets.all(15.0),
-        child: Column(
-          children: [
-            TextButton(
-                onPressed: () {
-                  receiptList.refresh();
-                },
-                child: Text("Refresh")),
-            FutureBuilder<List<Receipt>>(
-                future: fetchReceipts(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    return StreamBuilder<List<Receipt>>(
-                        initialData: snapshot.data,
-                        stream: receiptList.stream,
-                        builder: (context, snapshot) {
-                          if (snapshot.hasData) {
-                            final receipts = snapshot.data!;
+        child: RefreshIndicator(
+          triggerMode: RefreshIndicatorTriggerMode.anywhere,
+          onRefresh: receiptList.refresh,
+          child: FutureBuilder<List<Receipt>>(
+              future: fetchReceipts(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return StreamBuilder<List<Receipt>>(
+                      initialData: snapshot.data,
+                      stream: receiptList.stream,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final receipts = snapshot.data!;
 
-                            return Expanded(
-                              child: ListView.builder(
-                                itemCount: receipts.length,
-                                itemBuilder: (context, index) {
-                                  return Column(
-                                    children: [
-                                      _ReceiptWidget(receipts[index]),
-                                      const SizedBox(height: 5)
-                                    ],
-                                  );
-                                },
-                              ),
-                            );
-                          }
+                          return ListView.builder(
+                            itemCount: receipts.length,
+                            itemBuilder: (context, index) {
+                              return Column(
+                                children: [
+                                  _ReceiptWidget(receipts[index]),
+                                  const SizedBox(height: 5)
+                                ],
+                              );
+                            },
+                          );
+                        }
 
-                          if (snapshot.hasError) {
-                            return Text("ERROR - ${snapshot.error}");
-                          }
+                        if (snapshot.hasError) {
+                          return Text("ERROR - ${snapshot.error}");
+                        }
 
-                          return const CircularProgressIndicator();
-                        });
-                  }
+                        return const CircularProgressIndicator();
+                      });
+                }
 
-                  if (snapshot.hasError) {
-                    return Text("ERROR - ${snapshot.error}");
-                  }
+                if (snapshot.hasError) {
+                  return Text("ERROR - ${snapshot.error}");
+                }
 
-                  return const RefreshProgressIndicator();
-                }),
-          ],
+                return const RefreshProgressIndicator();
+              }),
         ));
   }
 }
