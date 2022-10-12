@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ReceiptsRoute());
 }
 
 enum ReceiptStatus {
@@ -30,6 +30,57 @@ class Receipt {
   static Receipt fromJson(Map<String, dynamic> json) {
     return Receipt(json['id'], json['name'], json['store'], json['amount'],
         DateTime.now(), ReceiptStatus.processed);
+  }
+}
+
+@immutable
+class ReceiptItem {
+  final String id;
+  final String name;
+  final String? category;
+  final String? categoryGroup;
+  final int amount;
+  final String receiptId;
+
+  const ReceiptItem(this.id, this.name, this.amount, this.receiptId,
+      {this.category, this.categoryGroup});
+
+  static ReceiptItem fromJson(Map<String, dynamic> json) {
+    return ReceiptItem(
+        json['id'], json['name'], json['amount'], json['receiptId'],
+        category: json['category'], categoryGroup: json['categoryGroup']);
+  }
+}
+
+class ReceiptItemListModel {
+  ReceiptItemListModel(this.receiptId);
+
+  Stream<List<ReceiptItem>> get stream {
+    return _stream.stream;
+  }
+
+  final String receiptId;
+  final _stream = StreamController<List<ReceiptItem>>();
+
+  Future<void> refresh() async {
+    print("Refresh");
+    final receiptItems = await fetchReceiptItems(receiptId);
+    _stream.addStream(Stream.value(receiptItems));
+    print("Refreshed");
+  }
+}
+
+Future<List<ReceiptItem>> fetchReceiptItems(String receiptId) async {
+  print("Fetching receipt items of receipt ${receiptId}...");
+  final response = await http
+      .get(Uri.parse('http://localhost:8080/items/?receipt=$receiptId'));
+  print("Fetched receipt items");
+
+  if (response.statusCode == 200) {
+    return List.from(
+        jsonDecode(response.body).map((e) => ReceiptItem.fromJson(e)));
+  } else {
+    throw Exception('Failed to load receipt items');
   }
 }
 
@@ -60,8 +111,8 @@ Future<List<Receipt>> fetchReceipts() async {
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ReceiptsRoute extends StatelessWidget {
+  const ReceiptsRoute({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +122,87 @@ class MyApp extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Receipts'),
         ),
-        body: _ReceiptListWidget(),
+        body: const _ReceiptListWidget(),
+      ),
+    );
+  }
+}
+
+class ReceiptItemsRoute extends StatelessWidget {
+  final Receipt receipt;
+
+  const ReceiptItemsRoute(this.receipt);
+
+  @override
+  Widget build(BuildContext context) {
+    final itemsList = ReceiptItemListModel(receipt.id);
+
+    return MaterialApp(
+      title: "Grocer",
+      home: Scaffold(
+        appBar: AppBar(
+          title: Row(
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.arrow_back),
+                splashRadius: 25.0,
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text('Items: ${receipt.name}'),
+              ),
+            ],
+          ),
+        ),
+        body: Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: RefreshIndicator(
+              triggerMode: RefreshIndicatorTriggerMode.anywhere,
+              onRefresh: itemsList.refresh,
+              child: FutureBuilder<List<ReceiptItem>>(
+                  future: fetchReceiptItems(receipt.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return StreamBuilder<List<ReceiptItem>>(
+                          initialData: snapshot.data,
+                          stream: itemsList.stream,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              final items = snapshot.data!;
+
+                              return ListView.builder(
+                                itemCount: items.length,
+                                itemBuilder: (context, index) {
+                                  final item = items[index];
+
+                                  return Column(
+                                    children: [
+                                      Text(item.name),
+                                      const SizedBox(height: 5)
+                                    ],
+                                  );
+                                },
+                              );
+                            }
+
+                            if (snapshot.hasError) {
+                              return Text("ERROR - ${snapshot.error}");
+                            }
+
+                            return const CircularProgressIndicator();
+                          });
+                    }
+
+                    if (snapshot.hasError) {
+                      return Text("ERROR - ${snapshot.error}");
+                    }
+
+                    return const RefreshProgressIndicator();
+                  }),
+            )),
       ),
     );
   }
@@ -105,9 +236,19 @@ class _ReceiptListWidget extends StatelessWidget {
                           return ListView.builder(
                             itemCount: receipts.length,
                             itemBuilder: (context, index) {
+                              final receipt = receipts[index];
                               return Column(
                                 children: [
-                                  _ReceiptWidget(receipts[index]),
+                                  GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    ReceiptItemsRoute(
+                                                        receipt)));
+                                      },
+                                      child: _ReceiptWidget(receipt)),
                                   const SizedBox(height: 5)
                                 ],
                               );
