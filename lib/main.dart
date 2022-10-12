@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -32,33 +33,34 @@ class Receipt {
   }
 }
 
+class ReceiptListModel {
+  Stream<List<Receipt>> get stream {
+    return _stream.stream;
+  }
+
+  final _stream = StreamController<List<Receipt>>();
+
+  void refresh() async {
+    print("Refresh");
+    _stream.addStream(Stream.fromFuture(fetchReceipts()));
+    print("Refreshed");
+  }
+}
+
 Future<List<Receipt>> fetchReceipts() async {
-  final response =
-      await http.get(Uri.parse('http://localhost:8080/receipts'));
+  print("Fteching receipts...");
+  final response = await http.get(Uri.parse('http://localhost:8080/receipts'));
+  print("Fteched receipts");
 
   if (response.statusCode == 200) {
-    return List.from(jsonDecode(response.body)
-        .map((e) => Receipt.fromJson(e)));
+    return List.from(jsonDecode(response.body).map((e) => Receipt.fromJson(e)));
   } else {
     throw Exception('Failed to load receipts');
   }
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  late Future<List<Receipt>> futureReceipts;
-
-  @override
-  void initState() {
-    super.initState();
-    futureReceipts = fetchReceipts();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,44 +68,74 @@ class _MyAppState extends State<MyApp> {
       title: "Grocer",
       home: Scaffold(
         appBar: AppBar(
-          title: TextButton(
-            style: ButtonStyle(
-              foregroundColor: MaterialStateProperty.all<Color>(Colors.blue),
-            ),
-            onPressed: () { },
-            child: Text('Receipts'),
-          ),
+          title: const Text('Receipts'),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: FutureBuilder<List<Receipt>>(
-            future: futureReceipts,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                final receiptList = snapshot.data!;
-                return ListView.builder(
-                  itemCount: receiptList.length,
-                  itemBuilder: (context, index) {
-                    return Column(
-                      children: [
-                        _ReceiptWidget(receiptList[index]),
-                        const SizedBox(
-                          height: 5,
-                        )
-                      ],
-                    );
-                  },
-                );
-              } else if (snapshot.hasError) {
-                return Text('${snapshot.error}');
-              } else {
-                return const CircularProgressIndicator();
-              }
-            },
-          ),
-        ),
+        body: _ReceiptListWidget(),
       ),
     );
+  }
+}
+
+class _ReceiptListWidget extends StatelessWidget {
+  const _ReceiptListWidget({
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final receiptList = ReceiptListModel();
+
+    return Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: Column(
+          children: [
+            TextButton(
+                onPressed: () {
+                  receiptList.refresh();
+                },
+                child: Text("Refresh")),
+            FutureBuilder<List<Receipt>>(
+                future: fetchReceipts(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return StreamBuilder<List<Receipt>>(
+                        initialData: snapshot.data,
+                        stream: receiptList.stream,
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            final receipts = snapshot.data!;
+
+                            return Expanded(
+                              child: ListView.builder(
+                                itemCount: receipts.length,
+                                itemBuilder: (context, index) {
+                                  return Column(
+                                    children: [
+                                      _ReceiptWidget(receipts[index]),
+                                      const SizedBox(height: 5)
+                                    ],
+                                  );
+                                },
+                              ),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Text("ERROR - ${snapshot.error}");
+                          }
+
+                          return const CircularProgressIndicator();
+                        });
+                  }
+
+                  if (snapshot.hasError) {
+                    return Text("ERROR - ${snapshot.error}");
+                  }
+
+                  return const RefreshProgressIndicator();
+                }),
+          ],
+        ));
   }
 }
 
